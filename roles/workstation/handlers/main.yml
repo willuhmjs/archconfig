@@ -1,3 +1,9 @@
 ---
 - name: Reload Waybar
-  shell: pkill -USR2 waybar || true
+  shell: |
+    export WAYLAND_DISPLAY=wayland-1
+    export XDG_RUNTIME_DIR=/run/user/$(id -u)
+    pkill waybar || true
+    sleep 1
+    nohup waybar > /dev/null 2>&1 &
+  ignore_errors: true

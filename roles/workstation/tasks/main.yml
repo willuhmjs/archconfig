@@ -20,7 +20,6 @@
       - wl-clipboard
       - kitty
       - dolphin
-      - firefox
       - pipewire
       - pipewire-pulse
       - wireplumber
@@ -34,25 +33,33 @@
       - mpv
       - btop
       - ttf-jetbrains-mono-nerd
-      - ttf-font-awesome
+      - otf-font-awesome
       - rsync
       - wlr-randr
-      - sddm
       - qt5-graphicaleffects
       - qt5-quickcontrols2
       - qt5-svg
       - uwsm
+      - greetd
+      - greetd-tuigreet
+      - terminus-font
     state: present
+    update_cache: yes
+  ignore_errors: true
+
+- name: Install other bullshit
+  become: true
+  pacman:
+    name:
+      - firefox
+      - discord
+    state: present
+    update_cache: yes
   ignore_errors: true
 
 - name: Install NVIDIA Drivers
   become: true
-  pacman:
-    name:
-      - nvidia-dkms
-      - nvidia-utils
-      - libva-nvidia-driver
-    state: present
+  shell: pacman -Sy --noconfirm --needed nvidia-dkms nvidia-utils libva-nvidia-driver
   ignore_errors: true
 
 - name: Configure NVIDIA explicitly for Wayland
@@ -85,10 +92,10 @@
 - name: Temporarily allow passwordless pacman for yay
   become: true
   shell: >
-    echo "{{ ansible_user_id }} ALL=(ALL) NOPASSWD: /usr/bin/pacman" > /etc/sudoers.d/10-installer-pacman && chmod 0440 /etc/sudoers.d/10-installer-pacman
+    echo "{{ ansible_facts['user_id'] }} ALL=(ALL) NOPASSWD: /usr/bin/pacman" > /etc/sudoers.d/10-installer-pacman && chmod 0440 /etc/sudoers.d/10-installer-pacman
 
 - name: Install AUR packages
-  shell: yay -S --noconfirm --needed hyprland-git hyprland-plugins-git avizo adw-gtk3 nwg-look nwg-displays wlogout sddm-theme-corners-git swww
+  shell: yay -S --noconfirm --needed hyprland-git avizo nwg-look nwg-displays wlogout awww
   ignore_errors: true
 
 - name: Remove temporary passwordless pacman config
@@ -115,6 +122,13 @@
     path: "{{ user_home }}/.config/hypr/monitors.conf"
     state: touch
     mode: '0644'
+
+- name: Create System Backgrounds Directory
+  become: true
+  file:
+    path: /usr/share/backgrounds
+    state: directory
+    mode: '0755'
 
 - name: Deploy Placeholder Wallpaper
   copy:
@@ -179,46 +193,41 @@
     dest: "{{ user_home }}/.config/avizo/style.css"
     mode: '0644'
 
-- name: Create SDDM configuration directory
-  become: true
-  file:
-    path: /etc/sddm.conf.d
-    state: directory
-    mode: '0755'
-
-- name: Configure SDDM Theme
-  become: true
-  shell: >
-    echo -e "[Theme]\nCurrent=corners" > /etc/sddm.conf.d/theme.conf && chmod 0644 /etc/sddm.conf.d/theme.conf
-
-- name: Configure SDDM HiDPI Settings
-  become: true
-  shell: >
-    echo -e "[Wayland]\nEnableHiDPI=true\n\n[X11]\nEnableHiDPI=true" > /etc/sddm.conf.d/hidpi.conf && chmod 0644 /etc/sddm.conf.d/hidpi.conf
-
-- name: Configure SDDM Default Session to uwsm
-  become: true
-  shell: >
-    echo -e "[Autologin]\nSession=hyprland-uwsm" > /etc/sddm.conf.d/10-wayland.conf && chmod 0644 /etc/sddm.conf.d/10-wayland.conf
-
 - name: Update Hyprland Plugin Headers safely
   shell:
     cmd: |
-      # Explicitly clear Wayland display to prevent headless segfaults
-      export WAYLAND_DISPLAY=""
-      # Redirect all output to avoid corrupting Ansible's JSON response if it crashes
-      hyprpm update --no-shallow > /tmp/hyprpm_update.log 2>&1 || true
+      hyprpm update > /tmp/hyprpm_update.log 2>&1 || true
     executable: /bin/bash
   ignore_errors: true
 
+- name: Set larger console font for HiDPI
+  become: true
+  copy:
+    dest: /etc/vconsole.conf
+    content: |
+      KEYMAP=us
+      FONT=ter-v32n
+    mode: '0644'
+
+- name: Configure greetd to use tuigreet
+  become: true
+  copy:
+    dest: /etc/greetd/config.toml
+    content: |
+      [terminal]
+      vt = 1
+
+      [default_session]
+      command = "tuigreet --time --remember --remember-user-session --asterisks --cmd 'uwsm start hyprland-uwsm.desktop'"
+      user = "greeter"
+    mode: '0644'
+
 - name: Enable systemd services
   become: true
-  systemd:
-    name: "{{ item }}"
-    enabled: yes
-    state: started
+  shell: systemctl enable --now {{ item }}
   loop:
     - bluetooth
     - power-profiles-daemon
     - NetworkManager
-    - sddm
+    - greetd
+  ignore_errors: true

@@ -3,6 +3,7 @@
   hosts: all
   become: false
   vars:
-    user_home: "{{ ansible_env.HOME | default('/home/' + ansible_user_id) }}"
+    ansible_python_interpreter: auto_silent
+    user_home: "{{ ansible_facts['env']['HOME'] | default('/home/' + ansible_facts['user_id']) }}"
   roles:
     - workstation

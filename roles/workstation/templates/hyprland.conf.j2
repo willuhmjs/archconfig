@@ -150,6 +150,15 @@ exec-once = /usr/lib/polkit-kde-authentication-agent-1
 exec-once = wl-paste --type text --watch cliphist store
 exec-once = wl-paste --type image --watch cliphist store
 exec-once = hypridle
+exec-once = discord
+
+# LIQUID GLASS LAYER RULES
+layerrule {
+    name = avizo-layer-blur
+    match:namespace = ^(avizo)$
+    blur = true
+}
+
 # LIQUID GLASS WINDOW RULES (V3 SYNTAX)
 windowrule {
     name = avizo-rules
@@ -173,4 +182,22 @@ windowrule {
     name = firefox-rules
     match:class = ^(firefox)$
     opacity = 0.95 0.95
+}
+
+windowrule {
+    name = discord-workspace
+    match:class = ^([Dd]iscord)$
+    workspace = 3
+}
+
+windowrule {
+    name = webcord-workspace
+    match:class = ^([Ww]eb[Cc]ord)$
+    workspace = 3
+}
+
+windowrule {
+    name = vesktop-workspace
+    match:class = ^([Vv]esktop)$
+    workspace = 3
 }

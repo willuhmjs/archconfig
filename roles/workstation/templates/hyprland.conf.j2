@@ -1,0 +1,160 @@
+monitor=eDP-1,highres,auto,1.25
+source = ~/.config/hypr/monitors.conf
+
+env = LIBVA_DRIVER_NAME,nvidia
+env = XDG_SESSION_TYPE,wayland
+env = GBM_BACKEND,nvidia-drm
+env = ELECTRON_OZONE_PLATFORM_HINT,auto
+env = GTK_THEME,adw-gtk3-dark
+
+# DARK THEME BY DEFAULT
+exec = gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+exec = gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'
+
+input { 
+    touchpad {
+        natural_scroll = true
+    } 
+}
+
+general {
+    gaps_in = 6
+    gaps_out = 12
+    border_size = 2
+    col.active_border = rgba(555555aa) rgba(888888aa) 45deg
+    col.inactive_border = rgba(222222aa)
+    resize_on_border = true
+    hover_icon_on_border = true
+}
+
+decoration {
+    rounding = 12
+    blur {
+        enabled = true
+        size = 12
+        passes = 4
+        new_optimizations = true
+        ignore_opacity = true
+        xray = true
+    }
+    shadow {
+        enabled = true
+        range = 20
+        render_power = 3
+        color = rgba(00000088)
+    }
+}
+
+animations {
+    enabled = true
+    bezier = overshot, 0.05, 0.9, 0.1, 1.05
+    bezier = smoothOut, 0.36, 0, 0.66, -0.56
+    bezier = smoothIn, 0.25, 1, 0.5, 1
+
+    animation = windows, 1, 5, overshot, slide
+    animation = windowsOut, 1, 4, smoothOut, slide
+    animation = windowsMove, 1, 4, default
+    animation = border, 1, 10, default
+    animation = fade, 1, 10, smoothIn
+    animation = fadeDim, 1, 10, smoothIn
+    animation = workspaces, 1, 6, default
+}
+
+plugin {
+    hyprwobbly { enabled = true; stiffness = 150; damping = 15 }
+}
+
+# MOUSE BINDINGS
+bindm = SUPER, mouse:272, movewindow
+bindm = SUPER, mouse:273, resizewindow
+
+# KEYBINDS
+bind = SUPER, RETURN, exec, kitty
+bind = SUPER, Q, killactive, 
+bind = SUPER, SPACE, exec, wofi --show drun
+bind = SUPER, E, exec, dolphin
+bind = SUPER, F, fullscreen,
+bind = SUPER, V, togglefloating,
+bind = SUPER SHIFT, S, exec, grim -g "$(slurp)" - | wl-copy
+bind = SUPER, L, exec, hyprlock
+bind = SUPER, C, exec, cliphist list | wofi --dmenu | cliphist decode | wl-copy
+bind = SUPER, ESCAPE, exec, wlogout
+
+# WORKSPACE MONITOR BINDINGS
+# Note: Swap 'DP-1' and 'eDP-1' if your external monitor port is named differently (check `hyprctl monitors`)
+workspace = 1, monitor:DP-1, default:true
+workspace = 2, monitor:eDP-1, default:true
+
+# WORKSPACES
+bind = SUPER, 1, workspace, 1
+bind = SUPER, 2, workspace, 2
+bind = SUPER, 3, workspace, 3
+bind = SUPER, 4, workspace, 4
+bind = SUPER, 5, workspace, 5
+bind = SUPER, 6, workspace, 6
+
+bind = SUPER SHIFT, 1, movetoworkspace, 1
+bind = SUPER SHIFT, 2, movetoworkspace, 2
+bind = SUPER SHIFT, 3, movetoworkspace, 3
+bind = SUPER SHIFT, 4, movetoworkspace, 4
+bind = SUPER SHIFT, 5, movetoworkspace, 5
+bind = SUPER SHIFT, 6, movetoworkspace, 6
+
+# WINDOW FOCUS
+bind = SUPER, left, movefocus, l
+bind = SUPER, right, movefocus, r
+bind = SUPER, up, movefocus, u
+bind = SUPER, down, movefocus, d
+
+# WINDOW MOVEMENT
+bind = SUPER SHIFT, left, movewindow, l
+bind = SUPER SHIFT, right, movewindow, r
+bind = SUPER SHIFT, up, movewindow, u
+bind = SUPER SHIFT, down, movewindow, d
+
+# HARDWARE CONTROLS
+bindle = , XF86AudioRaiseVolume, exec, volumectl -u up
+bindle = , XF86AudioLowerVolume, exec, volumectl -u down
+bindl = , XF86AudioMute, exec, volumectl toggle
+bindl = , XF86AudioPlay, exec, volumectl -m toggle
+bindl = , XF86AudioPause, exec, volumectl -m toggle
+bindl = , XF86AudioMicMute, exec, volumectl -m toggle
+bindle = , XF86MonBrightnessUp, exec, lightctl up
+bindle = , XF86MonBrightnessDown, exec, lightctl down
+
+# AUTOSTART WITH WALLPAPER
+exec-once = hyprpm reload -n
+exec-once = swww-daemon & sleep 1 && swww img ~/.config/wallpapers/current_wallpaper.jpg --transition-type simple
+exec-once = waybar
+exec-once = nm-applet --indicator
+exec-once = blueman-applet
+exec-once = avizo-service
+exec-once = mako
+exec-once = /usr/lib/polkit-kde-authentication-agent-1
+exec-once = wl-paste --type text --watch cliphist store
+exec-once = wl-paste --type image --watch cliphist store
+exec-once = hypridle
+# LIQUID GLASS WINDOW RULES (V3 SYNTAX)
+windowrule {
+    name = avizo-rules
+    match:class = ^(avizo)$
+    opacity = 0.90 0.90
+}
+
+windowrule {
+    name = kitty-rules
+    match:class = ^(kitty)$
+    opacity = 0.90 0.90
+}
+
+windowrule {
+    name = dolphin-rules
+    match:class = ^(dolphin)$
+    opacity = 0.90 0.90
+}
+
+windowrule {
+    name = firefox-rules
+    match:class = ^(firefox)$
+    opacity = 0.95 0.95
+}

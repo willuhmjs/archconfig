@@ -1,0 +1,224 @@
+---
+- name: Install Core Arch Packages
+  become: true
+  pacman:
+    name:
+      - git
+      - base-devel
+      - bluez
+      - bluez-utils
+      - waybar
+      - wofi
+      - mako
+      - hyprlock
+      - hypridle
+      - cliphist
+      - polkit-kde-agent
+      - xdg-desktop-portal-hyprland
+      - grim
+      - slurp
+      - wl-clipboard
+      - kitty
+      - dolphin
+      - firefox
+      - pipewire
+      - pipewire-pulse
+      - wireplumber
+      - network-manager-applet
+      - blueman
+      - pavucontrol
+      - playerctl
+      - brightnessctl
+      - pamixer
+      - power-profiles-daemon
+      - mpv
+      - btop
+      - ttf-jetbrains-mono-nerd
+      - ttf-font-awesome
+      - rsync
+      - wlr-randr
+      - sddm
+      - qt5-graphicaleffects
+      - qt5-quickcontrols2
+      - qt5-svg
+      - uwsm
+    state: present
+  ignore_errors: true
+
+- name: Install NVIDIA Drivers
+  become: true
+  pacman:
+    name:
+      - nvidia-dkms
+      - nvidia-utils
+      - libva-nvidia-driver
+    state: present
+  ignore_errors: true
+
+- name: Configure NVIDIA explicitly for Wayland
+  become: true
+  shell: >
+    mkdir -p /etc/modprobe.d && echo "options nvidia_drm modeset=1 fbdev=1" > /etc/modprobe.d/nvidia.conf
+
+- name: Check if yay is installed
+  shell: command -v yay
+  register: yay_check
+  ignore_errors: true
+
+- name: Clone yay
+  git:
+    repo: https://aur.archlinux.org/yay.git
+    dest: /tmp/yay
+  when: yay_check.rc != 0
+
+- name: Build yay
+  command: makepkg -s --noconfirm
+  args:
+    chdir: /tmp/yay
+  when: yay_check.rc != 0
+
+- name: Install yay
+  become: true
+  shell: pacman -U --noconfirm /tmp/yay/yay-*.pkg.tar.zst
+  when: yay_check.rc != 0
+
+- name: Temporarily allow passwordless pacman for yay
+  become: true
+  shell: >
+    echo "{{ ansible_user_id }} ALL=(ALL) NOPASSWD: /usr/bin/pacman" > /etc/sudoers.d/10-installer-pacman && chmod 0440 /etc/sudoers.d/10-installer-pacman
+
+- name: Install AUR packages
+  shell: yay -S --noconfirm --needed hyprland-git hyprland-plugins-git avizo adw-gtk3 nwg-look nwg-displays wlogout sddm-theme-corners-git swww
+  ignore_errors: true
+
+- name: Remove temporary passwordless pacman config
+  become: true
+  file:
+    path: "/etc/sudoers.d/10-installer-pacman"
+    state: absent
+
+- name: Create configuration directories
+  file:
+    path: "{{ user_home }}/.config/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - hypr
+    - waybar
+    - wofi
+    - kitty
+    - wallpapers
+    - avizo
+
+- name: Create empty monitors.conf to prevent Hyprland crash
+  file:
+    path: "{{ user_home }}/.config/hypr/monitors.conf"
+    state: touch
+    mode: '0644'
+
+- name: Deploy Placeholder Wallpaper
+  copy:
+    src: placeholder_wallpaper.jpg
+    dest: "{{ user_home }}/.config/wallpapers/current_wallpaper.jpg"
+    mode: '0644'
+  ignore_errors: true
+
+- name: Deploy Hyprland Configuration
+  template:
+    src: hyprland.conf.j2
+    dest: "{{ user_home }}/.config/hypr/hyprland.conf"
+    mode: '0644'
+
+- name: Deploy Hyprlock Configuration
+  template:
+    src: hyprlock.conf.j2
+    dest: "{{ user_home }}/.config/hypr/hyprlock.conf"
+    mode: '0644'
+
+- name: Deploy Professional Waybar Configuration
+  template:
+    src: waybar_config.j2
+    dest: "{{ user_home }}/.config/waybar/config"
+    mode: '0644'
+  notify: Reload Waybar
+
+- name: Deploy Minimalist Waybar Styles
+  template:
+    src: waybar_style.css.j2
+    dest: "{{ user_home }}/.config/waybar/style.css"
+    mode: '0644'
+  notify: Reload Waybar
+
+- name: Deploy Mac-Style Wofi Configuration
+  template:
+    src: wofi_config.j2
+    dest: "{{ user_home }}/.config/wofi/config"
+    mode: '0644'
+
+- name: Deploy Mac-Style Wofi Styles
+  template:
+    src: wofi_style.css.j2
+    dest: "{{ user_home }}/.config/wofi/style.css"
+    mode: '0644'
+
+- name: Deploy Kitty Configuration
+  template:
+    src: kitty.conf.j2
+    dest: "{{ user_home }}/.config/kitty/kitty.conf"
+    mode: '0644'
+
+- name: Deploy Avizo Configuration
+  template:
+    src: avizo_config.ini.j2
+    dest: "{{ user_home }}/.config/avizo/config.ini"
+    mode: '0644'
+
+- name: Deploy Avizo Styles
+  template:
+    src: avizo_style.css.j2
+    dest: "{{ user_home }}/.config/avizo/style.css"
+    mode: '0644'
+
+- name: Create SDDM configuration directory
+  become: true
+  file:
+    path: /etc/sddm.conf.d
+    state: directory
+    mode: '0755'
+
+- name: Configure SDDM Theme
+  become: true
+  shell: >
+    echo -e "[Theme]\nCurrent=corners" > /etc/sddm.conf.d/theme.conf && chmod 0644 /etc/sddm.conf.d/theme.conf
+
+- name: Configure SDDM HiDPI Settings
+  become: true
+  shell: >
+    echo -e "[Wayland]\nEnableHiDPI=true\n\n[X11]\nEnableHiDPI=true" > /etc/sddm.conf.d/hidpi.conf && chmod 0644 /etc/sddm.conf.d/hidpi.conf
+
+- name: Configure SDDM Default Session to uwsm
+  become: true
+  shell: >
+    echo -e "[Autologin]\nSession=hyprland-uwsm" > /etc/sddm.conf.d/10-wayland.conf && chmod 0644 /etc/sddm.conf.d/10-wayland.conf
+
+- name: Update Hyprland Plugin Headers safely
+  shell:
+    cmd: |
+      # Explicitly clear Wayland display to prevent headless segfaults
+      export WAYLAND_DISPLAY=""
+      # Redirect all output to avoid corrupting Ansible's JSON response if it crashes
+      hyprpm update --no-shallow > /tmp/hyprpm_update.log 2>&1 || true
+    executable: /bin/bash
+  ignore_errors: true
+
+- name: Enable systemd services
+  become: true
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  loop:
+    - bluetooth
+    - power-profiles-daemon
+    - NetworkManager
+    - sddm

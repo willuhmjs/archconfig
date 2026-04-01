@@ -1,0 +1,3 @@
+---
+- name: Reload Waybar
+  shell: pkill -USR2 waybar || true

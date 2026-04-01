@@ -1,0 +1,120 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 30,
+    "spacing": 8,
+    "modules-left": ["hyprland/workspaces", "hyprland/window"],
+    "modules-center": ["clock"],
+    "modules-right": ["cpu", "memory", "temperature", "network", "pulseaudio", "battery", "tray", "group/settings", "power-profiles-daemon"],
+    
+    "group/settings": {
+        "orientation": "inherit",
+        "drawer": {
+            "transition-duration": 500,
+            "children-class": "settings-drawer",
+            "transition-left-to-right": false
+        },
+        "modules": [
+            "custom/settings-icon",
+            "custom/nwg-displays",
+            "custom/nwg-look",
+            "custom/network",
+            "custom/bluetooth",
+            "custom/audio"
+        ]
+    },
+    "custom/settings-icon": {
+        "format": "",
+        "tooltip": false
+    },
+    "custom/nwg-displays": {
+        "format": "󰍹",
+        "on-click": "nwg-displays",
+        "tooltip-format": "Display Settings"
+    },
+    "custom/nwg-look": {
+        "format": "󰏘",
+        "on-click": "nwg-look",
+        "tooltip-format": "Appearance Settings"
+    },
+    "custom/network": {
+        "format": "󰤨",
+        "on-click": "nm-connection-editor",
+        "tooltip-format": "Network Settings"
+    },
+    "custom/bluetooth": {
+        "format": "󰂯",
+        "on-click": "blueman-manager",
+        "tooltip-format": "Bluetooth Settings"
+    },
+    "custom/audio": {
+        "format": "󰕾",
+        "on-click": "pavucontrol",
+        "tooltip-format": "Audio Settings"
+    },
+
+    "hyprland/workspaces": {
+        "format": "{name}",
+        "disable-scroll": true,
+        "all-outputs": true
+    },
+    "hyprland/window": {
+        "format": "{title}",
+        "max-length": 40
+    },
+    "clock": {
+        "format": "  {:%H:%M  |    %A, %b %d}",
+        "tooltip-format": "<tt><small>{calendar}</small></tt>"
+    },
+    "cpu": {
+        "format": "  {usage}%",
+        "tooltip": false
+    },
+    "memory": {
+        "format": "  {}%"
+    },
+    "temperature": {
+        "critical-threshold": 80,
+        "format": "{icon} {temperatureC}°C",
+        "format-icons": ["", "", ""]
+    },
+    "network": {
+        "format-wifi": "  {essid} ({signalStrength}%)",
+        "format-ethernet": "󰈀  {ipaddr}",
+        "format-disconnected": "⚠  Offline",
+        "tooltip-format": "{ifname} via {gwaddr}",
+        "on-click": "nm-connection-editor"
+    },
+    "pulseaudio": {
+        "format": "{icon}  {volume}%",
+        "format-muted": "  Muted",
+        "format-icons": {
+            "default": ["", "", ""]
+        },
+        "on-click": "pavucontrol"
+    },
+    "battery": {
+        "states": {
+            "warning": 30,
+            "critical": 15
+        },
+        "format": "{icon}  {capacity}%",
+        "format-charging": "  {capacity}%",
+        "format-plugged": "  {capacity}%",
+        "format-icons": ["", "", "", "", ""]
+    },
+    "tray": {
+        "icon-size": 16,
+        "spacing": 10
+    },
+    "power-profiles-daemon": {
+        "format": "{icon}",
+        "tooltip-format": "Power profile: {profile}",
+        "format-icons": {
+            "default": "",
+            "performance": "",
+            "balanced": "",
+            "power-saver": ""
+        }
+    }
+}

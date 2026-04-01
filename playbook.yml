@@ -1,0 +1,8 @@
+---
+- name: Deploy Professional Hyprland Workstation
+  hosts: all
+  become: false
+  vars:
+    user_home: "{{ ansible_env.HOME | default('/home/' + ansible_user_id) }}"
+  roles:
+    - workstation

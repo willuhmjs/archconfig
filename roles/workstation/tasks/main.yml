@@ -57,6 +57,21 @@
     update_cache: yes
   ignore_errors: true
 
+- name: Install productivity tools
+  become: true
+  pacman:
+    name:
+      - zathura
+      - zathura-pdf-mupdf
+      - pandoc-cli
+      - texlive-basic
+      - texlive-latex
+      - texlive-latexextra
+      - texlive-fontsrecommended
+    state: present
+    update_cache: yes
+  ignore_errors: true
+
 - name: Install NVIDIA Drivers
   become: true
   shell: pacman -Sy --noconfirm --needed nvidia-dkms nvidia-utils libva-nvidia-driver

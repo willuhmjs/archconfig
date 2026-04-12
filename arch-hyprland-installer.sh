@@ -351,6 +351,9 @@ install_aur_packages() {
     echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/pacman" | sudo tee /etc/sudoers.d/10-installer-pacman
     sudo chmod 0440 /etc/sudoers.d/10-installer-pacman
 
+    print_info "Removing conflicting hyprland packages before installing git versions..."
+    sudo pacman -Rdd --noconfirm hyprland hyprutils hyprlang hyprcursor hyprwayland-scanner aquamarine 2>/dev/null || true
+
     yay -S --needed --noconfirm "${aur_packages[@]}"
 
     # Remove temporary sudo rule

@@ -161,6 +161,11 @@
   shell: >
     echo "{{ ansible_facts['user_id'] }} ALL=(ALL) NOPASSWD: /usr/bin/pacman" > /etc/sudoers.d/10-installer-pacman && chmod 0440 /etc/sudoers.d/10-installer-pacman
 
+- name: Remove conflicting hyprland packages before installing git versions
+  become: true
+  shell: pacman -Rdd --noconfirm hyprland hyprutils hyprlang hyprcursor hyprwayland-scanner aquamarine
+  ignore_errors: true
+
 - name: Install AUR packages
   shell: yay -S --noconfirm --needed hyprland-git avizo nwg-look nwg-displays wlogout awww
   ignore_errors: true

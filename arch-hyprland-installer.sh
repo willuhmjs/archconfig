@@ -352,7 +352,7 @@ install_aur_packages() {
     sudo chmod 0440 /etc/sudoers.d/10-installer-pacman
 
     print_info "Removing conflicting hyprland packages before installing git versions..."
-    sudo pacman -Rdd --noconfirm hyprland hyprutils hyprlang hyprcursor hyprwayland-scanner aquamarine 2>/dev/null || true
+    for pkg in hyprland hyprutils hyprlang hyprcursor hyprwayland-scanner aquamarine; do sudo pacman -Rdd --noconfirm $pkg 2>/dev/null || true; done
 
     yay -S --needed --noconfirm "${aur_packages[@]}"
 

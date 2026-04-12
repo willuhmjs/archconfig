@@ -163,7 +163,7 @@
 
 - name: Remove conflicting hyprland packages before installing git versions
   become: true
-  shell: pacman -Rdd --noconfirm hyprland hyprutils hyprlang hyprcursor hyprwayland-scanner aquamarine
+  shell: for pkg in hyprland hyprutils hyprlang hyprcursor hyprwayland-scanner aquamarine; do pacman -Rdd --noconfirm $pkg || true; done
   ignore_errors: true
 
 - name: Install AUR packages

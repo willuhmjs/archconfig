@@ -260,7 +260,7 @@ install_packages() {
         xdg-desktop-portal-hyprland
         grim slurp wl-clipboard
         kitty dolphin
-        pipewire pipewire-pulse wireplumber
+        pipewire pipewire-pulse wireplumber pipewire-alsa pipewire-jack sof-firmware alsa-ucm-conf
         network-manager-applet
         blueman pavucontrol
         playerctl brightnessctl pamixer

@@ -28,6 +28,10 @@
       - pipewire
       - pipewire-pulse
       - wireplumber
+      - pipewire-alsa
+      - pipewire-jack
+      - sof-firmware
+      - alsa-ucm-conf
       - network-manager-applet
       - blueman
       - pavucontrol

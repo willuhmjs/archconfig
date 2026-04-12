@@ -1,4 +1,9 @@
 ---
+- name: Remove conflicting jack2 package
+  become: true
+  shell: pacman -Rdd --noconfirm jack2
+  ignore_errors: true
+
 - name: Install Core Arch Packages
   become: true
   pacman:

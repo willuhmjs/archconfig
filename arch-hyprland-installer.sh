@@ -272,6 +272,9 @@ install_packages() {
         uwsm greetd greetd-tuigreet terminus-font
     )
 
+    print_info "Removing conflicting packages if present..."
+    sudo pacman -Rdd --noconfirm jack2 2>/dev/null || true
+
     print_info "Installing core packages..."
     sudo pacman -S --needed --noconfirm "${core_packages[@]}"
 

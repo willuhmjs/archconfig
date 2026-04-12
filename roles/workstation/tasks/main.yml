@@ -5,6 +5,11 @@
     name:
       - git
       - base-devel
+      - cmake
+      - cpio
+      - pkg-config
+      - g++
+      - gcc
       - bluez
       - bluez-utils
       - waybar
@@ -47,14 +52,13 @@
     update_cache: yes
   ignore_errors: true
 
-- name: Install other bullshit
+- name: Install other optional packages
   become: true
   pacman:
-    name:
-      - firefox
-      - discord
+    name: "{{ (['firefox'] if install_firefox | bool else []) + (['discord'] if install_discord | bool else []) }}"
     state: present
     update_cache: yes
+  when: install_firefox | bool or install_discord | bool
   ignore_errors: true
 
 - name: Install productivity tools
@@ -72,15 +76,55 @@
     update_cache: yes
   ignore_errors: true
 
+- name: Detect hardware chassis type
+  shell: hostnamectl chassis
+  register: chassis_type_check
+  changed_when: false
+  ignore_errors: true
+
+- name: Detect hardware type
+  set_fact:
+    is_laptop: "{{ 'laptop' in chassis_type_check.stdout | lower or 'notebook' in chassis_type_check.stdout | lower }}"
+
+- name: Set monitor_setup to laptop if auto and laptop detected
+  set_fact:
+    monitor_setup: 'laptop'
+  when: monitor_setup == 'auto' and is_laptop | bool
+
+- name: Set has_touchpad to true if laptop detected and not explicitly set
+  set_fact:
+    has_touchpad: true
+  when: is_laptop | bool and not has_touchpad | bool
+
+- name: Detect GPU type via lspci
+  shell: lspci | grep -i vga
+  register: lspci_vga
+  changed_when: false
+  ignore_errors: true
+
+- name: Set gpu_type fact if auto
+  set_fact:
+    gpu_type: "{{ 'nvidia' if 'nvidia' in lspci_vga.stdout | lower else ('amd' if 'amd' in lspci_vga.stdout | lower else ('intel' if 'intel' in lspci_vga.stdout | lower else 'auto')) }}"
+  when: gpu_type == 'auto'
+
 - name: Install NVIDIA Drivers
   become: true
-  shell: pacman -Sy --noconfirm --needed nvidia-dkms nvidia-utils libva-nvidia-driver
+  pacman:
+    name:
+      - nvidia-dkms
+      - nvidia-utils
+      - libva-nvidia-driver
+    state: present
+  when: gpu_type == 'nvidia'
   ignore_errors: true
 
 - name: Configure NVIDIA explicitly for Wayland
   become: true
-  shell: >
-    mkdir -p /etc/modprobe.d && echo "options nvidia_drm modeset=1 fbdev=1" > /etc/modprobe.d/nvidia.conf
+  copy:
+    dest: /etc/modprobe.d/nvidia.conf
+    content: "options nvidia_drm modeset=1 fbdev=1"
+    mode: '0644'
+  when: gpu_type == 'nvidia'
 
 - name: Check if yay is installed
   shell: command -v yay
@@ -236,6 +280,13 @@
       command = "tuigreet --time --remember --remember-user-session --asterisks --cmd 'uwsm start hyprland-uwsm.desktop'"
       user = "greeter"
     mode: '0644'
+
+- name: Disable conflicting display managers
+  become: true
+  shell: |
+    systemctl disable sddm gdm lightdm || true
+    rm -f /etc/systemd/system/display-manager.service
+  ignore_errors: true
 
 - name: Enable systemd services
   become: true

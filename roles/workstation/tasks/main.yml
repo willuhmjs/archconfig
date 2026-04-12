@@ -7,8 +7,7 @@
       - base-devel
       - cmake
       - cpio
-      - pkg-config
-      - g++
+      - pkgconf
       - gcc
       - bluez
       - bluez-utils

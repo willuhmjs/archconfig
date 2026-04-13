@@ -1,7 +1,13 @@
 ---
-- name: Remove conflicting jack2 package
+- name: Remove conflicting packages (jack2, AUR, git versions)
   become: true
-  shell: pacman -Rdd --noconfirm jack2
+  shell: |
+    for pkg in jack2 yay hyprland-git hyprland-protocols-git hyprland-guiutils-git \
+    hyprwire-git hyprcursor-git hyprtoolkit-git hyprutils-git hyprlang-git \
+    hyprwayland-scanner-git hyprgraphics-git aquamarine-git avizo wlogout \
+    nwg-look nwg-displays awww; do
+      pacman -Rdd --noconfirm $pkg || true
+    done
   ignore_errors: true
 
 - name: Install Core Arch Packages
@@ -16,6 +22,10 @@
       - gcc
       - bluez
       - bluez-utils
+      - hyprland
+      - nwg-look
+      - nwg-displays
+      - awww
       - waybar
       - wofi
       - mako
@@ -134,40 +144,26 @@
     mode: '0644'
   when: gpu_type == 'nvidia'
 
-- name: Check if yay is installed
-  shell: command -v yay
-  register: yay_check
-  ignore_errors: true
-
-- name: Clone yay
-  git:
-    repo: https://aur.archlinux.org/yay.git
-    dest: /tmp/yay
-  when: yay_check.rc != 0
-
-- name: Build yay
-  command: makepkg -s --noconfirm
-  args:
-    chdir: /tmp/yay
-  when: yay_check.rc != 0
-
-- name: Install yay
-  become: true
-  shell: pacman -U --noconfirm /tmp/yay/yay-*.pkg.tar.zst
-  when: yay_check.rc != 0
-
-- name: Temporarily allow passwordless pacman for yay
+- name: Temporarily allow passwordless pacman for manual builds
   become: true
   shell: >
     echo "{{ ansible_facts['user_id'] }} ALL=(ALL) NOPASSWD: /usr/bin/pacman" > /etc/sudoers.d/10-installer-pacman && chmod 0440 /etc/sudoers.d/10-installer-pacman
 
-- name: Remove conflicting hyprland packages before installing git versions
-  become: true
-  shell: for pkg in hyprland hyprutils hyprlang hyprcursor hyprwayland-scanner aquamarine hyprwire hyprgraphics; do pacman -Rdd --noconfirm $pkg || true; done
-  ignore_errors: true
+- name: Create manual build directory
+  file:
+    path: /tmp/manual_builds
+    state: directory
+    mode: '0755'
 
-- name: Install AUR packages
-  shell: yay -S --noconfirm --needed hyprland-git avizo nwg-look nwg-displays wlogout awww
+- name: Build and install essential AUR packages manually
+  shell: |
+    rm -rf /tmp/manual_builds/{{ item }}
+    git clone https://aur.archlinux.org/{{ item }}.git /tmp/manual_builds/{{ item }}
+    cd /tmp/manual_builds/{{ item }}
+    makepkg -si --noconfirm --needed
+  loop:
+    - avizo
+    - wlogout
   ignore_errors: true
 
 - name: Remove temporary passwordless pacman config
@@ -219,6 +215,12 @@
   template:
     src: hyprlock.conf.j2
     dest: "{{ user_home }}/.config/hypr/hyprlock.conf"
+    mode: '0644'
+
+- name: Deploy Hypridle Configuration
+  template:
+    src: hypridle.conf.j2
+    dest: "{{ user_home }}/.config/hypr/hypridle.conf"
     mode: '0644'
 
 - name: Deploy Professional Waybar Configuration

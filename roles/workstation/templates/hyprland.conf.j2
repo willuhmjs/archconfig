@@ -50,7 +50,7 @@ general {
 decoration {
     rounding = 12
     blur {
-        enabled = {{ 'true' if enable_blur | bool else 'false' }}
+        enabled = {{ 'true' if (enable_blur | bool and not battery_saver | bool) else 'false' }}
         size = 12
         passes = 4
         new_optimizations = true
@@ -58,15 +58,19 @@ decoration {
         xray = true
     }
     shadow {
-        enabled = true
+        enabled = {{ 'true' if (enable_shadows | bool and not battery_saver | bool) else 'false' }}
         range = 20
         render_power = 3
         color = rgba(00000088)
     }
 }
 
+misc {
+    vfr = true
+}
+
 animations {
-    enabled = {{ 'true' if enable_animations | bool else 'false' }}
+    enabled = {{ 'true' if (enable_animations | bool and not battery_saver | bool) else 'false' }}
     {% if enable_animations | bool %}
     bezier = overshot, 0.05, 0.9, 0.1, 1.05
     bezier = smoothOut, 0.36, 0, 0.66, -0.56

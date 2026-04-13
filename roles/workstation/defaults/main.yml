@@ -1,0 +1,23 @@
+---
+# Monitor Configuration
+# Possible values: 'auto', 'laptop', 'desktop', 'manual'
+monitor_setup: 'auto'
+scale_factor: '1.0'
+
+# Input Configuration
+has_touchpad: false
+natural_scroll: true
+
+# Graphics Configuration
+# Possible values: 'nvidia', 'amd', 'intel', 'auto'
+gpu_type: 'auto'
+
+# UI Preferences
+enable_animations: true
+enable_blur: true
+enable_shadows: true
+battery_saver: false
+
+# Package Installation
+install_firefox: true
+install_discord: true

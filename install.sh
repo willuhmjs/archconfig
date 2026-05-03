@@ -78,6 +78,13 @@ mkdir -p ~/.config/{hypr,waybar,wofi,kitty,wallpapers,avizo}
 touch ~/.config/hypr/monitors.conf
 sudo mkdir -p /usr/share/backgrounds
 
+if [[ ! -f ~/.config/wallpapers/current_wallpaper.jpg ]]; then
+    info "Downloading wallpaper..."
+    curl -fsSL -o ~/.config/wallpapers/current_wallpaper.jpg \
+        "https://raw.githubusercontent.com/willuhmjs/archconfig/main/roles/workstation/files/placeholder_wallpaper.jpg"
+    ok "Wallpaper downloaded"
+fi
+
 # --- hyprland.conf ---
 cat > ~/.config/hypr/hyprland.conf << 'HYPREOF'
 monitor=,preferred,auto,1.0
@@ -201,6 +208,7 @@ bindl = , XF86AudioMicMute, exec, volumectl -m toggle
 bindle = , XF86MonBrightnessUp, exec, lightctl up
 bindle = , XF86MonBrightnessDown, exec, lightctl down
 
+exec-once = awww-daemon & sleep 1 && awww img ~/.config/wallpapers/current_wallpaper.jpg --transition-type simple
 exec-once = waybar
 exec-once = nm-applet --indicator
 exec-once = avizo-service

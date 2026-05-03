@@ -9,7 +9,6 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-GPU_TYPE=""
 MONITOR_SETUP=""
 SCALE_FACTOR="1.0"
 HAS_TOUCHPAD=false
@@ -55,17 +54,6 @@ ask_choice() {
     done
 }
 
-detect_gpu() {
-    info "Detecting GPU..."
-    local vga
-    vga=$(lspci | grep -i vga || true)
-    [[ "$vga" =~ -i.*nvidia ]] || grep -qi nvidia <<< "$vga" && info "  NVIDIA detected"
-    grep -qi amd <<< "$vga" && info "  AMD detected"
-    grep -qi intel <<< "$vga" && info "  Intel detected"
-
-    GPU_TYPE=$(ask_choice "GPU driver:" "nvidia" "amd" "intel" "none")
-}
-
 detect_machine() {
     info "Detecting machine type..."
     local chassis
@@ -104,7 +92,6 @@ gather_prefs() {
 show_summary() {
     echo ""
     echo -e "${BOLD}Configuration:${NC}"
-    echo "  GPU:         $GPU_TYPE"
     echo "  Monitor:     $MONITOR_SETUP (scale: $SCALE_FACTOR)"
     echo "  Touchpad:    $HAS_TOUCHPAD (natural: $NATURAL_SCROLL)"
     echo "  Firefox:     $INSTALL_FIREFOX"
@@ -151,13 +138,6 @@ install_packages() {
 
     sudo pacman -S --needed --noconfirm "${pkgs[@]}"
 
-    if [[ "$GPU_TYPE" == "nvidia" ]]; then
-        info "Installing NVIDIA drivers..."
-        sudo pacman -S --needed --noconfirm nvidia-dkms nvidia-utils libva-nvidia-driver
-        sudo mkdir -p /etc/modprobe.d
-        echo "options nvidia_drm modeset=1 fbdev=1" | sudo tee /etc/modprobe.d/nvidia.conf
-    fi
-
     ok "Packages installed"
 }
 
@@ -191,22 +171,7 @@ write_configs() {
     local monitor_line="monitor=,preferred,auto,${SCALE_FACTOR}"
     [[ "$MONITOR_SETUP" == "laptop" ]] && monitor_line="monitor=,highres,auto,${SCALE_FACTOR}"
 
-    local gpu_env=""
-    case "$GPU_TYPE" in
-        nvidia)
-            gpu_env="env = LIBVA_DRIVER_NAME,nvidia
-env = XDG_SESSION_TYPE,wayland
-env = GBM_BACKEND,nvidia-drm
-env = __GLX_VENDOR_LIBRARY_NAME,nvidia" ;;
-        amd)
-            gpu_env="env = LIBVA_DRIVER_NAME,radeonsi
-env = XDG_SESSION_TYPE,wayland" ;;
-        intel)
-            gpu_env="env = LIBVA_DRIVER_NAME,i965
-env = XDG_SESSION_TYPE,wayland" ;;
-        *)
-            gpu_env="env = XDG_SESSION_TYPE,wayland" ;;
-    esac
+    local gpu_env="env = XDG_SESSION_TYPE,wayland"
 
     local touchpad_block=""
     if [[ "$HAS_TOUCHPAD" == true ]]; then
@@ -754,10 +719,6 @@ EOF
     done
     sudo systemctl enable greetd 2>/dev/null || true
 
-    if [[ "$GPU_TYPE" == "nvidia" ]]; then
-        warn "NVIDIA: run 'sudo mkinitcpio -P' before rebooting"
-    fi
-
     ok "System configured"
 }
 
@@ -774,7 +735,6 @@ main() {
 
     echo -e "\n${BOLD}Arch Hyprland Installer${NC}\n"
 
-    detect_gpu
     detect_machine
     gather_prefs
     show_summary

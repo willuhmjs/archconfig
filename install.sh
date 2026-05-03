@@ -59,6 +59,10 @@ sudo chmod 0440 /etc/sudoers.d/10-installer-pacman
 
 mkdir -p /tmp/manual_builds
 for pkg in avizo wlogout helium-browser-bin; do
+    if pacman -Qi "$pkg" &>/dev/null; then
+        ok "  $pkg already installed"
+        continue
+    fi
     info "  Building $pkg..."
     rm -rf "/tmp/manual_builds/$pkg"
     git clone "https://aur.archlinux.org/$pkg.git" "/tmp/manual_builds/$pkg"
@@ -197,8 +201,6 @@ bindl = , XF86AudioMicMute, exec, volumectl -m toggle
 bindle = , XF86MonBrightnessUp, exec, lightctl up
 bindle = , XF86MonBrightnessDown, exec, lightctl down
 
-exec-once = hyprpm reload -n
-exec-once = awww-daemon & sleep 1 && awww img ~/.config/wallpapers/current_wallpaper.jpg --transition-type simple
 exec-once = waybar
 exec-once = nm-applet --indicator
 exec-once = avizo-service

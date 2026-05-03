@@ -1,258 +1,85 @@
 #!/bin/bash
 set -e
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-MONITOR_SETUP=""
-SCALE_FACTOR="1.0"
-HAS_TOUCHPAD=false
-NATURAL_SCROLL=true
-ENABLE_ANIMATIONS=true
-ENABLE_BLUR=true
-ENABLE_SHADOWS=true
-INSTALL_FIREFOX=true
-INSTALL_DISCORD=true
+info() { echo -e "${CYAN}::${NC} $1"; }
+ok()   { echo -e "${GREEN}::${NC} $1"; }
+warn() { echo -e "${YELLOW}::${NC} $1"; }
+err()  { echo -e "${RED}::${NC} $1"; }
 
-info()    { echo -e "${CYAN}::${NC} $1"; }
-ok()      { echo -e "${GREEN}::${NC} $1"; }
-warn()    { echo -e "${YELLOW}::${NC} $1"; }
-err()     { echo -e "${RED}::${NC} $1"; }
+if [[ $EUID -eq 0 ]]; then
+    err "Don't run as root. The script uses sudo when needed."
+    exit 1
+fi
 
-ask_yn() {
-    local prompt="$1" default="$2" response
-    if [[ "$default" == "y" ]]; then
-        echo -en "${CYAN}::${NC} $prompt [Y/n] "
-    else
-        echo -en "${CYAN}::${NC} $prompt [y/N] "
-    fi
-    read -r response
-    response=${response,,}
-    [[ -z "$response" ]] && response="$default"
-    [[ "$response" == "y" || "$response" == "yes" ]]
-}
+if [[ ! -f /etc/arch-release ]]; then
+    err "Arch Linux only."
+    exit 1
+fi
 
-ask_choice() {
-    local prompt="$1"; shift
-    local options=("$@")
-    echo -e "\n${CYAN}::${NC} $prompt"
-    for i in "${!options[@]}"; do
-        echo "   $((i+1))) ${options[$i]}"
-    done
-    while true; do
-        echo -en "   choice [1-${#options[@]}]: "
-        read -r choice
-        if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#options[@]} )); then
-            echo "${options[$((choice-1))]}"
-            return
-        fi
-    done
-}
+echo -e "\n${BOLD}Arch Hyprland Installer${NC}\n"
 
-detect_machine() {
-    info "Detecting machine type..."
-    local chassis
-    chassis=$(hostnamectl chassis 2>/dev/null || echo "desktop")
-    if [[ "$chassis" =~ laptop|notebook ]]; then
-        info "  Laptop detected"
-        MONITOR_SETUP="laptop"
-        HAS_TOUCHPAD=true
-    else
-        info "  Desktop detected"
-        MONITOR_SETUP="desktop"
-    fi
+# --- packages ---
+info "Installing core packages..."
+sudo pacman -Sy --noconfirm
+sudo pacman -Rdd --noconfirm jack2 2>/dev/null || true
 
-    MONITOR_SETUP=$(ask_choice "Monitor setup:" "auto" "laptop" "desktop" "manual")
+sudo pacman -S --needed --noconfirm \
+    git base-devel cmake cpio pkgconf gcc \
+    bluez bluez-utils \
+    hyprland nwg-look nwg-displays awww \
+    waybar wofi mako hyprlock hypridle \
+    cliphist polkit-kde-agent xdg-desktop-portal-hyprland \
+    grim slurp wl-clipboard \
+    kitty dolphin \
+    pipewire pipewire-pulse wireplumber pipewire-alsa pipewire-jack sof-firmware alsa-ucm-conf \
+    network-manager-applet blueman pavucontrol \
+    playerctl brightnessctl pamixer \
+    power-profiles-daemon \
+    mpv btop discord \
+    ttf-jetbrains-mono-nerd otf-font-awesome \
+    rsync wlr-randr \
+    qt5-graphicaleffects qt5-quickcontrols2 qt5-svg \
+    uwsm greetd greetd-tuigreet terminus-font \
+    zathura zathura-pdf-mupdf pandoc-cli \
+    texlive-basic texlive-latex texlive-latexextra texlive-fontsrecommended
 
-    if [[ "$MONITOR_SETUP" == "laptop" ]]; then
-        HAS_TOUCHPAD=true
-        echo -en "${CYAN}::${NC} Scale factor [1.0]: "
-        read -r sf
-        [[ -n "$sf" ]] && SCALE_FACTOR="$sf"
-    fi
+ok "Packages installed"
 
-    if [[ "$HAS_TOUCHPAD" == true ]]; then
-        ask_yn "Natural scroll?" "y" && NATURAL_SCROLL=true || NATURAL_SCROLL=false
-    fi
-}
+# --- AUR packages ---
+info "Building AUR packages..."
+echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/pacman" | sudo tee /etc/sudoers.d/10-installer-pacman > /dev/null
+sudo chmod 0440 /etc/sudoers.d/10-installer-pacman
 
-gather_prefs() {
-    ask_yn "Install Firefox?" "y"  && INSTALL_FIREFOX=true  || INSTALL_FIREFOX=false
-    ask_yn "Install Discord?" "y"  && INSTALL_DISCORD=true  || INSTALL_DISCORD=false
-    ask_yn "Enable animations?" "y" && ENABLE_ANIMATIONS=true || ENABLE_ANIMATIONS=false
-    ask_yn "Enable blur?" "y"      && ENABLE_BLUR=true      || ENABLE_BLUR=false
-    ask_yn "Enable shadows?" "y"   && ENABLE_SHADOWS=true   || ENABLE_SHADOWS=false
-}
+mkdir -p /tmp/manual_builds
+for pkg in avizo wlogout helium-browser-bin; do
+    info "  Building $pkg..."
+    rm -rf "/tmp/manual_builds/$pkg"
+    git clone "https://aur.archlinux.org/$pkg.git" "/tmp/manual_builds/$pkg"
+    (cd "/tmp/manual_builds/$pkg" && makepkg -si --noconfirm --needed) || warn "Failed to build $pkg"
+done
 
-show_summary() {
-    echo ""
-    echo -e "${BOLD}Configuration:${NC}"
-    echo "  Monitor:     $MONITOR_SETUP (scale: $SCALE_FACTOR)"
-    echo "  Touchpad:    $HAS_TOUCHPAD (natural: $NATURAL_SCROLL)"
-    echo "  Firefox:     $INSTALL_FIREFOX"
-    echo "  Discord:     $INSTALL_DISCORD"
-    echo "  Animations:  $ENABLE_ANIMATIONS"
-    echo "  Blur:        $ENABLE_BLUR"
-    echo "  Shadows:     $ENABLE_SHADOWS"
-    echo ""
-    if ! ask_yn "Proceed?" "y"; then
-        err "Cancelled."
-        exit 1
-    fi
-}
+sudo rm -f /etc/sudoers.d/10-installer-pacman
+ok "AUR packages built"
 
-install_packages() {
-    info "Installing core packages..."
-    sudo pacman -Sy --noconfirm
+# --- config directories ---
+info "Writing configs..."
+mkdir -p ~/.config/{hypr,waybar,wofi,kitty,wallpapers,avizo}
+touch ~/.config/hypr/monitors.conf
+sudo mkdir -p /usr/share/backgrounds
 
-    sudo pacman -Rdd --noconfirm jack2 2>/dev/null || true
-
-    local pkgs=(
-        git base-devel cmake cpio pkgconf gcc
-        bluez bluez-utils
-        hyprland nwg-look nwg-displays awww
-        waybar wofi mako hyprlock hypridle
-        cliphist polkit-kde-agent xdg-desktop-portal-hyprland
-        grim slurp wl-clipboard
-        kitty dolphin
-        pipewire pipewire-pulse wireplumber pipewire-alsa pipewire-jack sof-firmware alsa-ucm-conf
-        network-manager-applet blueman pavucontrol
-        playerctl brightnessctl pamixer
-        power-profiles-daemon
-        mpv btop
-        ttf-jetbrains-mono-nerd otf-font-awesome
-        rsync wlr-randr
-        qt5-graphicaleffects qt5-quickcontrols2 qt5-svg
-        uwsm greetd greetd-tuigreet terminus-font
-        zathura zathura-pdf-mupdf pandoc-cli
-        texlive-basic texlive-latex texlive-latexextra texlive-fontsrecommended
-    )
-
-    [[ "$INSTALL_FIREFOX" == true ]] && pkgs+=(firefox)
-    [[ "$INSTALL_DISCORD" == true ]] && pkgs+=(discord)
-
-    sudo pacman -S --needed --noconfirm "${pkgs[@]}"
-
-    ok "Packages installed"
-}
-
-install_aur_packages() {
-    info "Building AUR packages..."
-
-    echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/pacman" | sudo tee /etc/sudoers.d/10-installer-pacman
-    sudo chmod 0440 /etc/sudoers.d/10-installer-pacman
-
-    for pkg in avizo wlogout; do
-        info "  Building $pkg..."
-        rm -rf "/tmp/manual_builds/$pkg"
-        git clone "https://aur.archlinux.org/$pkg.git" "/tmp/manual_builds/$pkg"
-        (cd "/tmp/manual_builds/$pkg" && makepkg -si --noconfirm --needed) || warn "Failed to build $pkg"
-    done
-
-    sudo rm -f /etc/sudoers.d/10-installer-pacman
-    ok "AUR packages built"
-}
-
-bool() { [[ "$1" == true ]] && echo "true" || echo "false"; }
-
-write_configs() {
-    info "Writing configs..."
-
-    mkdir -p ~/.config/{hypr,waybar,wofi,kitty,wallpapers,avizo}
-    touch ~/.config/hypr/monitors.conf
-    sudo mkdir -p /usr/share/backgrounds
-
-    # --- hyprland.conf ---
-    local monitor_line="monitor=,preferred,auto,${SCALE_FACTOR}"
-    [[ "$MONITOR_SETUP" == "laptop" ]] && monitor_line="monitor=,highres,auto,${SCALE_FACTOR}"
-
-    local gpu_env="env = XDG_SESSION_TYPE,wayland"
-
-    local touchpad_block=""
-    if [[ "$HAS_TOUCHPAD" == true ]]; then
-        touchpad_block="    touchpad {
-        natural_scroll = $(bool $NATURAL_SCROLL)
-    }"
-    fi
-
-    local anim_block=""
-    if [[ "$ENABLE_ANIMATIONS" == true ]]; then
-        anim_block="animations {
-    enabled = true
-    bezier = overshot, 0.05, 0.9, 0.1, 1.05
-    bezier = smoothOut, 0.36, 0, 0.66, -0.56
-    bezier = smoothIn, 0.25, 1, 0.5, 1
-    animation = windows, 1, 5, overshot, slide
-    animation = windowsOut, 1, 4, smoothOut, slide
-    animation = windowsMove, 1, 4, default
-    animation = border, 1, 10, default
-    animation = fade, 1, 10, smoothIn
-    animation = fadeDim, 1, 10, smoothIn
-    animation = workspaces, 1, 6, default
-}"
-    else
-        anim_block="animations {
-    enabled = false
-}"
-    fi
-
-    local firefox_bind="" firefox_rule=""
-    if [[ "$INSTALL_FIREFOX" == true ]]; then
-        firefox_bind="bind = SUPER, B, exec, firefox"
-        firefox_rule="windowrule {
-    name = firefox-rules
-    match:class = ^(firefox)$
-    opacity = 0.95 0.95
-}"
-    fi
-
-    local discord_bind="" discord_autostart="" discord_rules=""
-    if [[ "$INSTALL_DISCORD" == true ]]; then
-        discord_bind="bind = SUPER, D, exec, discord"
-        discord_autostart="exec-once = discord"
-        discord_rules="windowrule {
-    name = discord-workspace
-    match:class = ^([Dd]iscord)$
-    workspace = 3
-}
-
-windowrule {
-    name = webcord-workspace
-    match:class = ^([Ww]eb[Cc]ord)$
-    workspace = 3
-}
-
-windowrule {
-    name = vesktop-workspace
-    match:class = ^([Vv]esktop)$
-    workspace = 3
-}"
-    fi
-
-    local workspace_monitor_bindings=""
-    if [[ "$MONITOR_SETUP" == "manual" ]]; then
-        workspace_monitor_bindings="workspace = 1, monitor:DP-3, default:true
-workspace = 2, monitor:DP-3
-workspace = 3, monitor:DP-2, default:true
-workspace = 4, monitor:DP-2
-workspace = 5, monitor:DP-3
-workspace = 6, monitor:DP-3
-workspace = 7, monitor:DP-2
-workspace = 8, monitor:DP-2
-workspace = 9, monitor:DP-3
-workspace = 10, monitor:DP-3"
-    fi
-
-    cat > ~/.config/hypr/hyprland.conf << HYPREOF
-${monitor_line}
+# --- hyprland.conf ---
+cat > ~/.config/hypr/hyprland.conf << 'HYPREOF'
+monitor=,preferred,auto,1.0
 source = ~/.config/hypr/monitors.conf
 
-${gpu_env}
+env = XDG_SESSION_TYPE,wayland
 env = ELECTRON_OZONE_PLATFORM_HINT,auto
 env = GTK_THEME,adw-gtk3-dark
 
@@ -260,7 +87,6 @@ exec = gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 exec = gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'
 
 input {
-${touchpad_block}
     kb_layout = us
 }
 
@@ -277,7 +103,7 @@ general {
 decoration {
     rounding = 12
     blur {
-        enabled = $(bool $ENABLE_BLUR)
+        enabled = true
         size = 12
         passes = 4
         new_optimizations = true
@@ -285,7 +111,7 @@ decoration {
         xray = true
     }
     shadow {
-        enabled = $(bool $ENABLE_SHADOWS)
+        enabled = true
         range = 20
         render_power = 3
         color = rgba(00000088)
@@ -296,7 +122,19 @@ misc {
     vfr = true
 }
 
-${anim_block}
+animations {
+    enabled = true
+    bezier = overshot, 0.05, 0.9, 0.1, 1.05
+    bezier = smoothOut, 0.36, 0, 0.66, -0.56
+    bezier = smoothIn, 0.25, 1, 0.5, 1
+    animation = windows, 1, 5, overshot, slide
+    animation = windowsOut, 1, 4, smoothOut, slide
+    animation = windowsMove, 1, 4, default
+    animation = border, 1, 10, default
+    animation = fade, 1, 10, smoothIn
+    animation = fadeDim, 1, 10, smoothIn
+    animation = workspaces, 1, 6, default
+}
 
 plugin {
     hyprwobbly { enabled = true; stiffness = 150; damping = 15 }
@@ -309,16 +147,14 @@ bind = SUPER, RETURN, exec, kitty
 bind = SUPER, Q, killactive,
 bind = SUPER, SPACE, exec, wofi --show drun
 bind = SUPER, E, exec, dolphin
-${firefox_bind}
-${discord_bind}
+bind = SUPER, B, exec, helium
+bind = SUPER, D, exec, discord
 bind = SUPER, F, fullscreen,
 bind = SUPER, V, togglefloating,
-bind = SUPER SHIFT, S, exec, grim -g "\$(slurp)" - | wl-copy
+bind = SUPER SHIFT, S, exec, grim -g "$(slurp)" - | wl-copy
 bind = SUPER, L, exec, hyprlock
 bind = SUPER, C, exec, cliphist list | wofi --dmenu | cliphist decode | wl-copy
 bind = SUPER, ESCAPE, exec, wlogout
-
-${workspace_monitor_bindings}
 
 bind = SUPER, 1, workspace, 1
 bind = SUPER, 2, workspace, 2
@@ -371,7 +207,7 @@ exec-once = /usr/lib/polkit-kde-authentication-agent-1
 exec-once = wl-paste --type text --watch cliphist store
 exec-once = wl-paste --type image --watch cliphist store
 exec-once = hypridle
-${discord_autostart}
+exec-once = discord
 
 layerrule {
     name = avizo-layer-blur
@@ -397,12 +233,27 @@ windowrule {
     opacity = 0.90 0.90
 }
 
-${firefox_rule}
-${discord_rules}
+windowrule {
+    name = discord-workspace
+    match:class = ^([Dd]iscord)$
+    workspace = 3
+}
+
+windowrule {
+    name = webcord-workspace
+    match:class = ^([Ww]eb[Cc]ord)$
+    workspace = 3
+}
+
+windowrule {
+    name = vesktop-workspace
+    match:class = ^([Vv]esktop)$
+    workspace = 3
+}
 HYPREOF
 
-    # --- hyprlock.conf ---
-    cat > ~/.config/hypr/hyprlock.conf << 'EOF'
+# --- hyprlock.conf ---
+cat > ~/.config/hypr/hyprlock.conf << 'EOF'
 background {
     monitor =
     path = ~/.config/wallpapers/current_wallpaper.jpg
@@ -445,8 +296,8 @@ label {
 }
 EOF
 
-    # --- hypridle.conf ---
-    cat > ~/.config/hypr/hypridle.conf << 'EOF'
+# --- hypridle.conf ---
+cat > ~/.config/hypr/hypridle.conf << 'EOF'
 general {
     lock_cmd = pidof hyprlock || hyprlock
     before_sleep_cmd = loginctl lock-session
@@ -482,8 +333,8 @@ listener {
 }
 EOF
 
-    # --- waybar config ---
-    cat > ~/.config/waybar/config << 'EOF'
+# --- waybar ---
+cat > ~/.config/waybar/config << 'EOF'
 {
     "reload_style_on_change": true,
     "layer": "top",
@@ -529,8 +380,7 @@ EOF
 }
 EOF
 
-    # --- waybar style ---
-    cat > ~/.config/waybar/style.css << 'EOF'
+cat > ~/.config/waybar/style.css << 'EOF'
 * {
     border: none;
     border-radius: 0;
@@ -586,8 +436,8 @@ window#waybar {
 #temperature.critical { color: #f38ba8; }
 EOF
 
-    # --- wofi ---
-    cat > ~/.config/wofi/config << 'EOF'
+# --- wofi ---
+cat > ~/.config/wofi/config << 'EOF'
 show=drun
 width=600
 height=400
@@ -601,7 +451,7 @@ term=kitty
 exec_search=true
 EOF
 
-    cat > ~/.config/wofi/style.css << 'EOF'
+cat > ~/.config/wofi/style.css << 'EOF'
 window {
     background-color: rgba(30, 30, 46, 0.85);
     border-radius: 12px;
@@ -638,8 +488,8 @@ window {
 }
 EOF
 
-    # --- kitty ---
-    cat > ~/.config/kitty/kitty.conf << 'EOF'
+# --- kitty ---
+cat > ~/.config/kitty/kitty.conf << 'EOF'
 font_family      JetBrainsMono Nerd Font
 font_size        11.0
 bold_font        auto
@@ -654,8 +504,8 @@ window_padding_width 8
 term xterm-256color
 EOF
 
-    # --- avizo ---
-    cat > ~/.config/avizo/config.ini << 'EOF'
+# --- avizo ---
+cat > ~/.config/avizo/config.ini << 'EOF'
 [default]
 time = 2.0
 y-offset = 0.85
@@ -668,7 +518,7 @@ block-spacing = 0
 block-count = 100
 EOF
 
-    cat > ~/.config/avizo/style.css << 'EOF'
+cat > ~/.config/avizo/style.css << 'EOF'
 #avizo {
   background: rgba(26, 27, 38, 0.60);
   border-radius: 20px;
@@ -692,17 +542,16 @@ EOF
 }
 EOF
 
-    ok "Configs written"
-}
+ok "Configs written"
 
-configure_system() {
-    info "Configuring system..."
+# --- system config ---
+info "Configuring system..."
 
-    echo "KEYMAP=us
+echo "KEYMAP=us
 FONT=ter-v32n" | sudo tee /etc/vconsole.conf > /dev/null
 
-    sudo mkdir -p /etc/greetd
-    cat << 'EOF' | sudo tee /etc/greetd/config.toml > /dev/null
+sudo mkdir -p /etc/greetd
+cat << 'EOF' | sudo tee /etc/greetd/config.toml > /dev/null
 [terminal]
 vt = 1
 
@@ -711,46 +560,21 @@ command = "tuigreet --time --remember --remember-user-session --asterisks --cmd 
 user = "greeter"
 EOF
 
-    sudo systemctl disable sddm gdm lightdm 2>/dev/null || true
-    sudo rm -f /etc/systemd/system/display-manager.service
+sudo systemctl disable sddm gdm lightdm 2>/dev/null || true
+sudo rm -f /etc/systemd/system/display-manager.service
 
-    for svc in bluetooth power-profiles-daemon NetworkManager; do
-        sudo systemctl enable --now "$svc" 2>/dev/null || true
-    done
-    sudo systemctl enable greetd 2>/dev/null || true
+for svc in bluetooth power-profiles-daemon NetworkManager; do
+    sudo systemctl enable --now "$svc" 2>/dev/null || true
+done
+sudo systemctl enable greetd 2>/dev/null || true
 
-    ok "System configured"
-}
+ok "System configured"
 
-main() {
-    if [[ $EUID -eq 0 ]]; then
-        err "Don't run as root. The script uses sudo when needed."
-        exit 1
-    fi
-
-    if [[ ! -f /etc/arch-release ]]; then
-        err "Arch Linux only."
-        exit 1
-    fi
-
-    echo -e "\n${BOLD}Arch Hyprland Installer${NC}\n"
-
-    detect_machine
-    gather_prefs
-    show_summary
-
-    install_packages
-    install_aur_packages
-    write_configs
-    configure_system
-
-    echo ""
-    ok "Done. Reboot and greetd will start Hyprland."
-    echo -e "   SUPER+RETURN  terminal"
-    echo -e "   SUPER+SPACE   launcher"
-    echo -e "   SUPER+Q       close window"
-    echo -e "   SUPER+L       lock"
-    echo ""
-}
-
-main "$@"
+echo ""
+ok "Done. Reboot and greetd will start Hyprland."
+echo -e "   SUPER+RETURN  terminal"
+echo -e "   SUPER+SPACE   launcher"
+echo -e "   SUPER+B       helium browser"
+echo -e "   SUPER+Q       close window"
+echo -e "   SUPER+L       lock"
+echo ""

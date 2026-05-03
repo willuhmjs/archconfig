@@ -1,5 +1,5 @@
 ---
-- name: Remove conflicting packages (jack2, AUR, git versions)
+- name: Remove conflicting packages
   become: true
   shell: |
     for pkg in jack2 yay hyprland-git hyprland-protocols-git hyprland-guiutils-git \
@@ -10,7 +10,7 @@
     done
   ignore_errors: true
 
-- name: Install Core Arch Packages
+- name: Install core packages
   become: true
   pacman:
     name:
@@ -70,7 +70,7 @@
     update_cache: yes
   ignore_errors: true
 
-- name: Install other optional packages
+- name: Install optional packages
   become: true
   pacman:
     name: "{{ (['firefox'] if install_firefox | bool else []) + (['discord'] if install_discord | bool else []) }}"
@@ -94,7 +94,7 @@
     update_cache: yes
   ignore_errors: true
 
-- name: Detect hardware chassis type
+- name: Detect chassis type
   shell: hostnamectl chassis
   register: chassis_type_check
   changed_when: false
@@ -104,28 +104,28 @@
   set_fact:
     is_laptop: "{{ 'laptop' in chassis_type_check.stdout | lower or 'notebook' in chassis_type_check.stdout | lower }}"
 
-- name: Set monitor_setup to laptop if auto and laptop detected
+- name: Auto-set monitor_setup for laptops
   set_fact:
     monitor_setup: 'laptop'
   when: monitor_setup == 'auto' and is_laptop | bool
 
-- name: Set has_touchpad to true if laptop detected and not explicitly set
+- name: Auto-set touchpad for laptops
   set_fact:
     has_touchpad: true
   when: is_laptop | bool and not has_touchpad | bool
 
-- name: Detect GPU type via lspci
+- name: Detect GPU type
   shell: lspci | grep -i vga
   register: lspci_vga
   changed_when: false
   ignore_errors: true
 
-- name: Set gpu_type fact if auto
+- name: Auto-set gpu_type
   set_fact:
     gpu_type: "{{ 'nvidia' if 'nvidia' in lspci_vga.stdout | lower else ('amd' if 'amd' in lspci_vga.stdout | lower else ('intel' if 'intel' in lspci_vga.stdout | lower else 'auto')) }}"
   when: gpu_type == 'auto'
 
-- name: Install NVIDIA Drivers
+- name: Install NVIDIA drivers
   become: true
   pacman:
     name:
@@ -136,7 +136,7 @@
   when: gpu_type == 'nvidia'
   ignore_errors: true
 
-- name: Configure NVIDIA explicitly for Wayland
+- name: Configure NVIDIA for Wayland
   become: true
   copy:
     dest: /etc/modprobe.d/nvidia.conf
@@ -144,18 +144,18 @@
     mode: '0644'
   when: gpu_type == 'nvidia'
 
-- name: Temporarily allow passwordless pacman for manual builds
+- name: Allow passwordless pacman for AUR builds
   become: true
   shell: >
     echo "{{ ansible_facts['user_id'] }} ALL=(ALL) NOPASSWD: /usr/bin/pacman" > /etc/sudoers.d/10-installer-pacman && chmod 0440 /etc/sudoers.d/10-installer-pacman
 
-- name: Create manual build directory
+- name: Create build directory
   file:
     path: /tmp/manual_builds
     state: directory
     mode: '0755'
 
-- name: Build and install essential AUR packages manually
+- name: Build AUR packages
   shell: |
     rm -rf /tmp/manual_builds/{{ item }}
     git clone https://aur.archlinux.org/{{ item }}.git /tmp/manual_builds/{{ item }}
@@ -166,13 +166,13 @@
     - wlogout
   ignore_errors: true
 
-- name: Remove temporary passwordless pacman config
+- name: Remove temporary sudoers rule
   become: true
   file:
     path: "/etc/sudoers.d/10-installer-pacman"
     state: absent
 
-- name: Create configuration directories
+- name: Create config directories
   file:
     path: "{{ user_home }}/.config/{{ item }}"
     state: directory
@@ -185,96 +185,93 @@
     - wallpapers
     - avizo
 
-- name: Create empty monitors.conf to prevent Hyprland crash
+- name: Create empty monitors.conf
   file:
     path: "{{ user_home }}/.config/hypr/monitors.conf"
     state: touch
     mode: '0644'
 
-- name: Create System Backgrounds Directory
+- name: Create backgrounds directory
   become: true
   file:
     path: /usr/share/backgrounds
     state: directory
     mode: '0755'
 
-- name: Deploy Placeholder Wallpaper
+- name: Deploy wallpaper
   copy:
     src: placeholder_wallpaper.jpg
     dest: "{{ user_home }}/.config/wallpapers/current_wallpaper.jpg"
     mode: '0644'
   ignore_errors: true
 
-- name: Deploy Hyprland Configuration
+- name: Deploy hyprland config
   template:
     src: hyprland.conf.j2
     dest: "{{ user_home }}/.config/hypr/hyprland.conf"
     mode: '0644'
 
-- name: Deploy Hyprlock Configuration
+- name: Deploy hyprlock config
   template:
     src: hyprlock.conf.j2
     dest: "{{ user_home }}/.config/hypr/hyprlock.conf"
     mode: '0644'
 
-- name: Deploy Hypridle Configuration
+- name: Deploy hypridle config
   template:
     src: hypridle.conf.j2
     dest: "{{ user_home }}/.config/hypr/hypridle.conf"
     mode: '0644'
 
-- name: Deploy Professional Waybar Configuration
+- name: Deploy waybar config
   template:
     src: waybar_config.j2
     dest: "{{ user_home }}/.config/waybar/config"
     mode: '0644'
   notify: Reload Waybar
 
-- name: Deploy Minimalist Waybar Styles
+- name: Deploy waybar style
   template:
     src: waybar_style.css.j2
     dest: "{{ user_home }}/.config/waybar/style.css"
     mode: '0644'
   notify: Reload Waybar
 
-- name: Deploy Mac-Style Wofi Configuration
+- name: Deploy wofi config
   template:
     src: wofi_config.j2
     dest: "{{ user_home }}/.config/wofi/config"
     mode: '0644'
 
-- name: Deploy Mac-Style Wofi Styles
+- name: Deploy wofi style
   template:
     src: wofi_style.css.j2
     dest: "{{ user_home }}/.config/wofi/style.css"
     mode: '0644'
 
-- name: Deploy Kitty Configuration
+- name: Deploy kitty config
   template:
     src: kitty.conf.j2
     dest: "{{ user_home }}/.config/kitty/kitty.conf"
     mode: '0644'
 
-- name: Deploy Avizo Configuration
+- name: Deploy avizo config
   template:
     src: avizo_config.ini.j2
     dest: "{{ user_home }}/.config/avizo/config.ini"
     mode: '0644'
 
-- name: Deploy Avizo Styles
+- name: Deploy avizo style
   template:
     src: avizo_style.css.j2
     dest: "{{ user_home }}/.config/avizo/style.css"
     mode: '0644'
 
-- name: Update Hyprland Plugin Headers safely
-  shell:
-    cmd: |
-      hyprpm update > /tmp/hyprpm_update.log 2>&1 || true
-    executable: /bin/bash
+- name: Update hyprpm
+  shell: hyprpm update > /tmp/hyprpm_update.log 2>&1 || true
   ignore_errors: true
 
-- name: Set larger console font for HiDPI
+- name: Set console font
   become: true
   copy:
     dest: /etc/vconsole.conf
@@ -283,7 +280,7 @@
       FONT=ter-v32n
     mode: '0644'
 
-- name: Configure greetd to use tuigreet
+- name: Configure greetd
   become: true
   copy:
     dest: /etc/greetd/config.toml
@@ -303,7 +300,7 @@
     rm -f /etc/systemd/system/display-manager.service
   ignore_errors: true
 
-- name: Enable systemd services
+- name: Enable services
   become: true
   shell: systemctl enable --now {{ item }}
   loop:

@@ -32,7 +32,7 @@ ask_yn() {
     else
         echo -en "${CYAN}::${NC} $prompt [y/N] "
     fi
-    read -r response
+    read -r response < /dev/tty
     response=${response,,}
     [[ -z "$response" ]] && response="$default"
     [[ "$response" == "y" || "$response" == "yes" ]]
@@ -47,7 +47,7 @@ ask_choice() {
     done
     while true; do
         echo -en "   choice [1-${#options[@]}]: "
-        read -r choice
+        read -r choice < /dev/tty
         if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#options[@]} )); then
             echo "${options[$((choice-1))]}"
             return
@@ -84,7 +84,7 @@ detect_machine() {
     if [[ "$MONITOR_SETUP" == "laptop" ]]; then
         HAS_TOUCHPAD=true
         echo -en "${CYAN}::${NC} Scale factor [1.0]: "
-        read -r sf
+        read -r sf < /dev/tty
         [[ -n "$sf" ]] && SCALE_FACTOR="$sf"
     fi
 

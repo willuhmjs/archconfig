@@ -1,17 +1,6 @@
 #!/bin/bash
 set -e
 
-if [[ -z "$ARCHCONFIG_RUNNING" ]]; then
-    tmpfile=$(mktemp /tmp/archconfig-install.XXXXXX.sh)
-    if [[ -t 0 ]]; then
-        cp "$0" "$tmpfile"
-    else
-        cat > "$tmpfile"
-    fi
-    chmod +x "$tmpfile"
-    ARCHCONFIG_RUNNING=1 exec bash "$tmpfile" "$@"
-fi
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
